@@ -1,8 +1,8 @@
 import numpy as np
-from demmap_pos import demmap_pos
+from demmap_pos import demmap_pos, demmap_pos_gpu
 
 def dn2dem_pos(dn_in,edn_in,tresp,tresp_logt,temps,reg_tweak=1.0,max_iter=10,gloci=0,\
-    rgt_fact=1.5,dem_norm0=None,nmu=40,warn=False,emd_int=False,emd_ret=False,l_emd=False,non_pos=False,rscl=False):
+    rgt_fact=1.5,dem_norm0=None,nmu=40,warn=False,emd_int=False,emd_ret=False,l_emd=False,non_pos=False,rscl=False, target=None):
     """
     Performs a Regularization on solar data, returning the Differential Emission Measure (DEM)
     using the method of Hannah & Kontar A&A 553 2013
@@ -212,7 +212,11 @@ def dn2dem_pos(dn_in,edn_in,tresp,tresp_logt,temps,reg_tweak=1.0,max_iter=10,glo
 # *****************************************************
 # Should always be just running the first part of if here as setting dem01d to array of 1s if nothing given
 # So now more a check dimensions of things are correct 
-    if ( dem0.ndim==dn.ndim ):
+    if (target == 'gpu'):
+        dem1d,edem1d,elogt1d,chisq1d,dn_reg1d=demmap_pos_gpu(dn1d,edn1d,rmatrix,logt,dlogt,glc,\
+            reg_tweak=reg_tweak,max_iter=max_iter,rgt_fact=rgt_fact,dem_norm0=dem0,nmu=nmu,warn=warn,l_emd=l_emd,rscl=rscl)
+
+    elif ( dem0.ndim==dn.ndim ):
         dem01d=np.reshape(dem0,[nx*ny,nt])
         dem1d,edem1d,elogt1d,chisq1d,dn_reg1d=demmap_pos(dn1d,edn1d,rmatrix,logt,dlogt,glc,\
             reg_tweak=reg_tweak,max_iter=max_iter,rgt_fact=rgt_fact,dem_norm0=dem01d,nmu=nmu,warn=warn,l_emd=l_emd,rscl=rscl)

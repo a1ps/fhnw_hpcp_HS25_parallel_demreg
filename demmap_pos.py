@@ -6,6 +6,8 @@ import concurrent.futures
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 from threadpoolctl import threadpool_limits
+from cProfile import Profile
+from numba import cuda, float64
 
 def demmap_pos(dd,ed,rmatrix,logt,dlogt,glc,reg_tweak=1.0,max_iter=10,rgt_fact=1.5,dem_norm0=None,nmu=42,warn=False,l_emd=False,rscl=False):
     """
@@ -318,3 +320,99 @@ def dem_pix(dnin,ednin,rmatrix,logt,dlogt,glc,reg_tweak=1.0,max_iter=10,rgt_fact
             dn_reg=(rmatrix.T @ dem).squeeze()
             chisq=np.sum(((dnin-dn_reg)/ednin)**2)/nf
     return dem,edem,elogt,chisq,dn_reg
+
+""" 
+GPU version of demmap_pos using numba cuda
+"""
+# GPU-compatible version of per-pixel DEM logic (placeholders for advanced math)
+@cuda.jit
+def dem_pix_gpu(dd, ed, rmatrix, logt, dlogt, glc, dem, edem, elogt, chisq, dn_reg):
+    i = cuda.grid(1)
+    na = dd.shape[0]
+    nt = logt.shape[0]
+    nf = rmatrix.shape[1]
+    if i < na:
+        # Allocate local arrays (adjust max sizes as needed)
+        rmatrixin = cuda.local.array((32, 32), float64)
+        dn = cuda.local.array(32, float64)
+        edn = cuda.local.array(32, float64)
+        dnin = cuda.local.array(32, float64)
+        ednin = cuda.local.array(32, float64)
+        for k in range(nf):
+            dnin[k] = dd[i, k]
+            ednin[k] = ed[i, k]
+        # Normalize rmatrixin, dn, edn
+        for kk in range(nf):
+            for tt in range(nt):
+                rmatrixin[tt, kk] = rmatrix[tt, kk] / ednin[kk]
+            dn[kk] = dnin[kk] / ednin[kk]
+            edn[kk] = ednin[kk] / ednin[kk]
+        # Check for NaN/Inf/product > 0
+        valid = 1
+        prod = 1.0
+        for k in range(nf):
+            if dn[k] != dn[k]:  # NaN check
+                valid = 0
+            if dn[k] == float('inf') or dn[k] == -float('inf'):
+                valid = 0
+            prod *= dn[k]
+        if valid and prod > 0:
+            # Placeholders for GSVD/regularization logic (not supported on GPU)
+            for t in range(nt):
+                dem[i, t] = 1.0  # Placeholder: set to 1.0 for valid pixels
+                edem[i, t] = 0.1  # Placeholder
+                elogt[i, t] = 0.01  # Placeholder
+            chisq[i] = 0.0  # Placeholder
+            for f in range(nf):
+                dn_reg[i, f] = 0.0  # Placeholder
+        else:
+            # Invalid pixel: set outputs to zero
+            for t in range(nt):
+                dem[i, t] = 0.0
+                edem[i, t] = 0.0
+                elogt[i, t] = 0.0
+            chisq[i] = 0.0
+            for f in range(nf):
+                dn_reg[i, f] = 0.0
+        # NOTE: GSVD, reg_map, and advanced error propagation must be done on CPU or with custom GPU code
+
+# Host function to launch the GPU kernel
+def demmap_pos_gpu(dd, ed, rmatrix, logt, dlogt, glc):
+    na = dd.shape[0]
+    nt = logt.shape[0]
+    nf = rmatrix.shape[1]
+    dem = np.zeros((na, nt), dtype=np.float64)
+    edem = np.zeros((na, nt), dtype=np.float64)
+    elogt = np.zeros((na, nt), dtype=np.float64)
+    chisq = np.zeros(na, dtype=np.float64)
+    dn_reg = np.zeros((na, nf), dtype=np.float64)
+
+    # Transfer data to device
+    dd_d = cuda.to_device(dd)
+    ed_d = cuda.to_device(ed)
+    rmatrix_d = cuda.to_device(rmatrix)
+    logt_d = cuda.to_device(logt)
+    dlogt_d = cuda.to_device(dlogt)
+    glc_d = cuda.to_device(glc)
+    dem_d = cuda.to_device(dem)
+    edem_d = cuda.to_device(edem)
+    elogt_d = cuda.to_device(elogt)
+    chisq_d = cuda.to_device(chisq)
+    dn_reg_d = cuda.to_device(dn_reg)
+
+    threadsperblock = 64
+    blockspergrid = (na + (threadsperblock - 1)) // threadsperblock
+
+    dem_pix_gpu[blockspergrid, threadsperblock](
+        dd_d, ed_d, rmatrix_d, logt_d, dlogt_d, glc_d,
+        dem_d, edem_d, elogt_d, chisq_d, dn_reg_d
+    )
+
+    # Copy results back to host
+    dem = dem_d.copy_to_host()
+    edem = edem_d.copy_to_host()
+    elogt = elogt_d.copy_to_host()
+    chisq = chisq_d.copy_to_host()
+    dn_reg = dn_reg_d.copy_to_host()
+
+    return dem, edem, elogt, chisq, dn_reg

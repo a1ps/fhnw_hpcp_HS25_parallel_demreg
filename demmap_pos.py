@@ -111,7 +111,7 @@ def demmap_pos(dd,ed,rmatrix,logt,dlogt,glc,reg_tweak=1.0,max_iter=10,rgt_fact=1
     ednin=np.zeros([nf])
  
     # do we have enough DEM's to make parallel make sense?
-    if (na>=200):
+    if (na>=200000000):
         n_par = 100
         niter=(int(np.floor((na)/n_par)))
 #       Put this here to make sure running dem calc in parallel, not the underlying np/gsvd stuff (this correct/needed?)  
@@ -150,15 +150,17 @@ def demmap_pos(dd,ed,rmatrix,logt,dlogt,glc,reg_tweak=1.0,max_iter=10,rgt_fact=1
                     dn_reg[i_start+i,:]=result[4]
         
     #else we execute in serial
-    else:   
-        for i in range(na):
-            result=dem_pix(dd[i,:],ed[i,:],rmatrix,logt,dlogt,glc, \
-                reg_tweak=reg_tweak,max_iter=max_iter,rgt_fact=rgt_fact,dem_norm0=dem_norm0[i,:],nmu=nmu,warn=warn,l_emd=l_emd,rscl=rscl)
-            dem[i,:]=result[0]
-            edem[i,:]=result[1]
-            elogt[i,:]=result[2]
-            chisq[i]=result[3]
-            dn_reg[i,:]=result[4]
+    else:
+        with Profile() as pr:
+            for i in range(na):
+                result=dem_pix(dd[i,:],ed[i,:],rmatrix,logt,dlogt,glc, \
+                    reg_tweak=reg_tweak,max_iter=max_iter,rgt_fact=rgt_fact,dem_norm0=dem_norm0[i,:],nmu=nmu,warn=warn,l_emd=l_emd,rscl=rscl)
+                dem[i,:]=result[0]
+                edem[i,:]=result[1]
+                elogt[i,:]=result[2]
+                chisq[i]=result[3]
+                dn_reg[i,:]=result[4]
+        pr.print_stats(sort='time')
 
     return dem,edem,elogt,chisq,dn_reg
 
@@ -241,6 +243,10 @@ def dem_pix(dnin,ednin,rmatrix,logt,dlogt,glc,reg_tweak=1.0,max_iter=10,rgt_fact
                 # Just a diagional matrix scaled by dlogT
                 L=np.diag(1.0/np.sqrt(dlogt[:]))
                 #run gsvd
+                if not np.all(np.isfinite(rmatrixin.T)) or not np.all(np.isfinite(L)):
+                    if warn:
+                        print("Skipping pixel due to NaN/Inf in matrix")
+                    return dem, edem, elogt, chisq, dn_reg
                 sva,svb,U,V,W=dem_inv_gsvd(rmatrixin.T,L)
                 #run reg map
                 lamb=dem_reg_map(sva,svb,U,W,dn,edn,rgt,nmu)
@@ -269,7 +275,11 @@ def dem_pix(dnin,ednin,rmatrix,logt,dlogt,glc,reg_tweak=1.0,max_iter=10,rgt_fact
             # this works better with EMD calc, instead of DEM
             L=np.diag(1/abs(dem_reg_lwght)) 
         else:
-            L=np.diag(np.sqrt(dlogt)/np.sqrt(abs(dem_reg_lwght))) 
+            L=np.diag(np.sqrt(dlogt)/np.sqrt(abs(dem_reg_lwght)))
+        if not np.all(np.isfinite(rmatrixin.T)) or not np.all(np.isfinite(L)):
+            if warn:
+                print("Skipping pixel due to NaN/Inf in matrix")
+            return dem, edem, elogt, chisq, dn_reg
         sva,svb,U,V,W = dem_inv_gsvd(rmatrixin.T,L)
 #  Now loop until positive solution or max_iter reached
         while((ndem > 0) and (piter < max_iter)):

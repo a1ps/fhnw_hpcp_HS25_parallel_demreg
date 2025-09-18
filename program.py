@@ -26,7 +26,6 @@ warnings.simplefilter('ignore')
 plt.rcParams['font.size'] = 16
 data_dir = cwd + '/raw_data/'
 
-
 # --- Load and prepare AIA data ---
 wvsrch = a.Wavelength(94 * u.angstrom, 335 * u.angstrom)
 ff = sorted(glob.glob(data_dir + 'aia*lev1*.fits'))
@@ -73,8 +72,6 @@ gains = np.array([18.3, 17.6, 17.7, 18.3, 18.3, 17.6])
 dn2ph = gains * np.array([94, 131, 171, 193, 211, 335]) / 3397.
 rdnse = np.array([1.14, 1.18, 1.15, 1.20, 1.20, 1.18])
 num_pix = 1
-get_error_table()  # Not used, but called for completeness
-
 
 # --- Temperature bins ---
 temps = np.logspace(5.7, 7.6, num=42)
@@ -83,9 +80,14 @@ temps = np.logspace(5.7, 7.6, num=42)
 # --- DEM calculation for the whole image ---
 ny, nx = aprep[0].data.shape
 nf = len(aprep)
+
 # Ensure all maps have the same shape before stacking
 base_shape = aprep[0].data.shape
-data_list = [m.data if m.data.shape == base_shape else np.resize(m.data, base_shape) for m in aprep]
+
+if len(sys.argv) > 1:
+    data_list = [m.data[:int(sys.argv[1]), :int(sys.argv[1])] for m in aprep]
+else: 
+    data_list = [m.data if m.data.shape == base_shape else np.resize(m.data, base_shape) for m in aprep]
 data_cube = np.stack(data_list, axis=-1)
 degs_arr = degs.reshape((1, 1, nf))
 durs_arr = durs.reshape((1, 1, nf))
@@ -109,4 +111,4 @@ ax = plt.subplot(projection=dem_map)
 im = dem_map.plot()
 plt.title('DEM Result Map (Peak Bin)')
 plt.colorbar(im)
-plt.show()
+plt.show(block=True)

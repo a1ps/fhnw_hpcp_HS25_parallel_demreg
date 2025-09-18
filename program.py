@@ -30,7 +30,8 @@ data_dir = cwd + '/raw_data/'
 wvsrch = a.Wavelength(94 * u.angstrom, 335 * u.angstrom)
 ff = sorted(glob.glob(data_dir + 'aia*lev1*.fits'))
 if not ff:
-    result = Fido.search(a.Time('2010-11-03T12:15:09', '2010-11-03T12:15:19'), a.Instrument("aia"), wvsrch)
+    result = Fido.search(a.Time('2024-11-03T12:15:09', '2024-11-03T12:15:19'), a.Instrument("aia"), wvsrch)
+    print(result)
     Fido.fetch(result, path=data_dir)
     ff = sorted(glob.glob(data_dir + 'aia*lev1*.fits'))
 amaps = sunpy.map.Map(ff)

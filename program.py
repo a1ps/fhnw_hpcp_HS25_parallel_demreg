@@ -99,7 +99,7 @@ shotnoise = (dn2ph_arr * data_cube * num_pix) ** 0.5 / dn2ph_arr / num_pix / deg
 edn_in = (rdnse_arr ** 2 + shotnoise ** 2) ** 0.5 / durs_arr
 if len(sys.argv) > 2:
     dem_cube, _, _, _, _ = dn2dem_pos(
-        dn_in, edn_in, trmatrix, tresp_logt, temps, dem_norm0=np.ones(1), max_iter=10000, target=int(sys.argv[2])
+        dn_in, edn_in, trmatrix, tresp_logt, temps, dem_norm0=np.ones(1), max_iter=10000, target=sys.argv[2]
     )
 else:
     dem_cube, _, _, _, _ = dn2dem_pos(

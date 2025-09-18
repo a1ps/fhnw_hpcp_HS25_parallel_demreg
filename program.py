@@ -10,8 +10,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.io as io
 import glob
+import os
+cwd = os.getcwd()
 import sys 
-sys.path.append('/home/ldeville/FHNW/HPCP/fhnw_hpcp_HS25_parallel_demreg/python')
+sys.path.append(cwd + '/python')
 from dn2dem_pos import dn2dem_pos
 import astropy.time as atime
 from astropy import units as u
@@ -22,7 +24,7 @@ from sunpy.net import Fido, attrs as a
 import warnings
 warnings.simplefilter('ignore')
 plt.rcParams['font.size'] = 16
-data_dir = '/home/ldeville/FHNW/HPCP/Project/raw_data/'
+data_dir = cwd + '/raw_data/'
 
 
 # --- Load and prepare AIA data ---
@@ -52,7 +54,7 @@ wvn = np.array([m.meta['wavelnth'] for m in aprep])
 
 
 # --- Load temperature response ---
-trin = io.readsav('/home/ldeville/FHNW/HPCP/Project/demreg/python/aia_tresp_en.dat')
+trin = io.readsav(cwd + '/aia_tresp_en.dat')
 tresp_logt = np.array(trin['logt'])
 nt = len(tresp_logt)
 nf = len(trin['tr'][:])
@@ -62,7 +64,7 @@ trmatrix = np.stack([trin['tr'][i] for i in range(nf)], axis=1)
 # --- Degradation correction factors ---
 channels = [94, 131, 171, 193, 211, 335] * u.angstrom
 time = atime.Time('2010-11-03T12:15:00', scale='utc')
-correction_table = get_correction_table('/home/ldeville/FHNW/HPCP/Project/demreg/python/aia_V10_20201119_190000_response_table.txt')
+correction_table = get_correction_table(cwd + '/aia_V10_20201119_190000_response_table.txt')
 degs = np.array([degradation(ch.value * u.angstrom, time, correction_table=correction_table) for ch in channels])
 
 

@@ -2,10 +2,6 @@
     This program combines the jupyter notebook example_demregpy_aiapxl 
     from the demreg git repo into a single python program
 """ 
-
-# Import some of the stuff we will need
-
-
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.io as io
@@ -18,7 +14,7 @@ from dn2dem_pos import dn2dem_pos
 import astropy.time as atime
 from astropy import units as u
 import sunpy.map 
-from aiapy.calibrate.util import get_pointing_table, get_correction_table, get_error_table
+from aiapy.calibrate.util import get_pointing_table, get_correction_table
 from aiapy.calibrate import register, update_pointing, degradation
 from sunpy.net import Fido, attrs as a
 import warnings
@@ -30,8 +26,8 @@ data_dir = cwd + '/raw_data/'
 wvsrch = a.Wavelength(94 * u.angstrom, 335 * u.angstrom)
 ff = sorted(glob.glob(data_dir + 'aia*lev1*.fits'))
 if not ff:
-    result = Fido.search(a.Time('2024-11-03T12:15:09', '2024-11-03T12:15:19'), a.Instrument("aia"), wvsrch)
-    res = Fido.fetch(result, path=data_dir, max_conn=7)
+    result = Fido.search(a.Time('2010-11-03T12:15:09', '2010-11-03T12:15:19'), a.Instrument("aia"), wvsrch)
+    res = Fido.fetch(result, path=data_dir, max_conn=len(result))
     ff = sorted(glob.glob(data_dir + 'aia*lev1*.fits'))
 amaps = sunpy.map.Map(ff)
 wvn0 = [m.meta['wavelnth'] for m in amaps]
@@ -75,7 +71,6 @@ num_pix = 1
 
 # --- Temperature bins ---
 temps = np.logspace(5.7, 7.6, num=42)
-
 
 # --- DEM calculation for the whole image ---
 ny, nx = aprep[0].data.shape

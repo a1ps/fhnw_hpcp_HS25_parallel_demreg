@@ -79,8 +79,10 @@ nf = len(aprep)
 # Ensure all maps have the same shape before stacking
 base_shape = aprep[0].data.shape
 
-if len(sys.argv) > 1:
+if len(sys.argv) == 2:
     data_list = [m.data[:int(sys.argv[1]), :int(sys.argv[1])] for m in aprep]
+elif (len(sys.argv) == 3):
+    data_list = [m.data[int(sys.argv[1]):int(sys.argv[2]), int(sys.argv[1]):int(sys.argv[2])] for m in aprep]
 else: 
     data_list = [m.data if m.data.shape == base_shape else np.resize(m.data, base_shape) for m in aprep]
 data_cube = np.stack(data_list, axis=-1)
